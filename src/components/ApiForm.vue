@@ -1,56 +1,79 @@
 <template>
   <div>
-    <h1>Submit Data</h1>
-    <form @submit.prevent="submitForm">
+    <div  v-if="!isLogin">
+      <h1>Submit Data</h1>
+      <form @submit.prevent="submitForm">
+        <div>
+          <label for="email">Email:</label>
+          <input v-model="formData.email" id="email" type="email" required />
+        </div>
+        <div>
+          <label for="password">Password:</label>
+          <input v-model="formData.password" id="password" required />
+        </div>
+        <button type="submit">Submit</button>
+      </form>
+      <p v-if="responseMessage">{{ responseMessage }}</p>
+    </div>
+    <div v-else>
       <div>
-        <label for="email">Email:</label>
-        <input v-model="formData.email" id="email" type="email" required />
+        <span>name:</span>
+        <span>{{ useInfo.name }}</span>
       </div>
       <div>
-        <label for="password">Password:</label>
-        <input v-model="formData.password" id="password" required />
+        <span>email:</span>
+        <span>{{ useInfo.email }}</span>
       </div>
-      <button type="submit">Submit</button>
-    </form>
-    <p v-if="responseMessage">{{ responseMessage }}</p>
-    <button type="button" @click="logout">Logout</button>
-  </div>
+      <button type="button" @click="logout">Logout</button>
+    </div>
+    </div>
 </template>
 
 <script setup>
 import { reactive , ref, onBeforeMount } from 'vue'
 import apiClient from '../utils/api';
+import { deleteCookie } from '../utils/cookie';
 
 const formData = reactive({
   email: '',
   password: '',
 })
 const responseMessage = ref('')
+const isLogin = ref(false)
+const useInfo = ref({})
 
 onBeforeMount(() => {
   getData()
 })
 
 const getData = async () => {
-  const clientMessage = await apiClient.get('/', formData);
-  const csrfCookie = await apiClient.get('/csrf-cookie');
-  console.log(clientMessage)
-  console.log(csrfCookie)
-  localStorage.setItem('csrfCookie','aadb5e6f-0449-40fa-b3e7-b16772ef223e')
+  let use_info = localStorage.getItem('useInfo')
+  if (use_info) {
+    useInfo.value = JSON.parse(use_info)
+    isLogin.value = true
+  }
+  await apiClient.get('/')
+  await apiClient.get('/csrf-cookie')
 }
 
 
 // 获取用户信息
 const getUserInfo = async () => {
-  const useInfo = await apiClient.get('/api/user', formData);
-  localStorage.setItem('useInfo', useInfo)
+  try {
+    const result = await apiClient.get('/api/user', formData)
+    localStorage.setItem('useInfo', JSON.stringify(result.data.data))
+    useInfo.value = result.data.data
+    isLogin.value = true
+  } catch (error) {
+    isLogin.value = false
+  }
 }
 
 // 提交
 const submitForm = async () => {
   try {
-    const response = await apiClient.post('/login', formData);
-    responseMessage.value = `Success: ${response.data.message}`;
+    await apiClient.post('/login', formData);
+    responseMessage.value = `Success`;
     getUserInfo()
   } catch (error) {
     responseMessage.value = 'Submission failed. Please try again.';
@@ -61,6 +84,9 @@ const submitForm = async () => {
 const logout = async () => {
   await apiClient.post('/logout');
   localStorage.removeItem('useInfo')
+  deleteCookie('XSRF-TOKEN')
+  deleteCookie('demo_session')
+  location.reload()
 }
 
 </script>

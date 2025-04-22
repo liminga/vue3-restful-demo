@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { getCookie } from './cookie';
 
 // 获取 API 基础 URL
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL;
@@ -14,9 +15,9 @@ const apiClient = axios.create({
 
 // 请求拦截器（可选：添加 CSRF Token）
 apiClient.interceptors.request.use((config) => {
-  const csrfCookie = localStorage.getItem('csrfCookie')
+  const xsrf_token = getCookie('XSRF-TOKEN')
   // 在这里可以动态注入 CSRF Token，例如从 Cookie 或 LocalStorage 获取
-  config.headers['X-CSRF-Token'] = csrfCookie;
+  if(xsrf_token) config.headers['X-XSRF-TOKEN'] = xsrf_token;
   return config;
 });
 
